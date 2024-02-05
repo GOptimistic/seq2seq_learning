@@ -6,7 +6,7 @@ from torchinfo import summary as infosummary
 
 from dataset.EN2CNDataset import EN2CNDataset, get_dictionary, load_data
 from model import Encoder, Decoder, Attention, Seq2Seq
-from utils import infinite_iter, tokens2sentence, computebleu, save_model, load_model, schedule_sampling, get_evaluation
+from utils import infinite_iter, tokens2sentence, computebleu, save_model, load_model, schedule_sampling
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -20,7 +20,7 @@ n_layers = 4  # RNN的层数
 dropout = 0.5  # dropout的概率p
 learning_rate = 0.001  # 初始化学习率
 # teacher_forcing_ratio = 0.5      # 使用正解训练的概率
-summary_steps = 12000  # 总训练batch数
+summary_steps = 30000  # 总训练batch数
 kk = np.argmin([np.abs(summary_steps / 2 - x * np.log(x)) for x in range(1, summary_steps)])
 
 word2int_cn, int2word_cn, cn_vocab_size = get_dictionary(data_path, 'cn')  # 中文字典

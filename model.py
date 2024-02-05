@@ -106,8 +106,6 @@ class Seq2Seq(nn.Module):
         # input  = [batch size, input len]
         # target = [batch size, target len]
         # teacher_forcing_ratio 是使用正解训练的概率
-        print(input.shape)
-        print(target.shape)
         batch_size = target.shape[0]
         target_len = target.shape[1]
         vocab_size = self.decoder.cn_vocab_size
