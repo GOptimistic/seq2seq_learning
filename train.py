@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.utils.data as data
 import numpy as np
 from torchinfo import summary as infosummary
+import matplotlib.pyplot as plt
 
 from dataset.EN2CNDataset import EN2CNDataset, get_dictionary, load_data
 from model import Encoder, Decoder, Attention, Seq2Seq
@@ -12,6 +13,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 data_path = "./dataset/cmn-eng"  # 数据集的位置
 store_model_path = "./saved_model"  # 储存模型的位置
+valid_res_path = "./valid_result"  # 储存模型的位置
 max_output_len = 45  # 输出句子的最大长度
 batch_size = 64  # batch_size
 emb_dim = 256  # word embedding向量的维度
@@ -86,7 +88,7 @@ for step in range(summary_steps):
     loss.backward()
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
     optimizer.step()
-    accuracy = torch.eq(outputs.argmax(1), targets).float().mean().item()
+    accuracy = torch.eq(preds, targets).float().mean().item()
     accuracy_sum += accuracy
 
     loss_sum += loss.item()
@@ -100,8 +102,9 @@ for step in range(summary_steps):
         if (step + 1) % 600 == 0:
             # 每600轮 batch 训练进行验证，并存储模型
             model.eval()
-            loss_val, bleu_val = 0.0, 0.0
+            loss_val, bleu_val, acc_val = 0.0, 0.0, 0,0
             n = 0
+            result_val = []
             for sources_val, targets_val in val_loader:
                 sources_val, targets_val = sources_val.to(device), targets_val.to(device)
                 batch_size = sources_val.size(0)
@@ -112,24 +115,32 @@ for step in range(summary_steps):
                 targets_val = targets_val[:, 1:].reshape(-1)
                 loss = loss_function(outputs_val, targets_val)
                 loss_val += loss.item()
-                accuracy_val = torch.eq(outputs_val.argmax(1), targets_val).float().mean().item()
+                acc_val += torch.eq(preds_val, targets_val).float().mean().item()
 
                 # 将预测结果转为文字
                 targets_val = targets_val.view(sources_val.size(0), -1)
                 preds_val = tokens2sentence(preds_val, int2word_cn)
                 sources_val = tokens2sentence(sources_val, int2word_en)
                 targets_val = tokens2sentence(targets_val, int2word_cn)
+                # 记录验证集结果
+                for source, pred, target in zip(sources_val, preds_val, targets_val):
+                    result_val.append((source, pred, target))
                 # 计算 Bleu Score
                 bleu_val += computebleu(preds_val, targets_val)
                 n += batch_size
             loss_val = loss_val / len(val_loader)
+            acc_val = acc_val / len(val_loader)
             bleu_val = bleu_val / n
             val_losses.append(loss_val)
             val_bleu_scores.append(bleu_val)
-            print("\n", "val [{}] loss: {:.3f}, Perplexity: {:.3f}, bleu score: {:.3f}, accuracy: {:.3f} ".format(step + 1, loss_val,
+            print("\n", "val [{}] loss: {:.3f}, Perplexity: {:.3f}, bleu-4 score: {:.3f}, accuracy: {:.3f} ".format(step + 1, loss_val,
                                                                                                 np.exp(loss_val),
                                                                                                 bleu_val,
-                                                                                                accuracy_val))
+                                                                                                acc_val))
+            # 储存结果
+            with open(valid_res_path + '/valid_output_{}.txt'.format(step + 1), 'w') as f:
+                for line in result_val:
+                    print(line, file=f)
             if loss_val < best_loss:
                 best_loss = loss_val
                 best_step = step + 1
@@ -137,6 +148,7 @@ for step in range(summary_steps):
             save_model(model, optimizer, store_model_path, step + 1)
 
 
+print("Best loss: {}, best step: {}".format(best_loss, best_step))
 # Test
 load_model_path = store_model_path + "/model_attention_{}.ckpt".format(best_step)  # 读取模型位置
 
@@ -172,8 +184,30 @@ for sources_test, targets_test in test_loader:
 loss_test = loss_test / len(test_loader)
 acc_test = acc_test / len(test_loader)
 bleu_test = bleu_test / n
-print('test loss: {}, bleu_score: {}, acc: {}'.format(loss_test, bleu_test, acc_test))
+print('test loss: {}, bleu-4 score: {}, acc: {}'.format(loss_test, bleu_test, acc_test))
 # 储存结果
 with open('./test_attention_output.txt', 'w') as f:
     for line in result:
         print(line, file=f)
+
+# 绘图
+plt.figure(1)
+plt.plot(range(1, len(train_losses) + 1), train_losses)
+plt.xlabel('step')
+plt.ylabel('loss')
+plt.title('train loss')
+plt.savefig('./train_loss.png')
+
+plt.figure(2)
+plt.plot(range(1, len(val_losses) + 1), val_losses)
+plt.xlabel('step per 600')
+plt.ylabel('loss')
+plt.title('valid loss')
+plt.savefig('./valid_loss.png')
+
+plt.figure(3)
+plt.plot(range(1, len(val_bleu_scores) + 1), val_bleu_scores)
+plt.xlabel('step per 600')
+plt.ylabel('bleu')
+plt.title('valid bleu')
+plt.savefig('./valid_bleu.png')

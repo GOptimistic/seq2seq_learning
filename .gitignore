@@ -1,6 +1,8 @@
 .DS_Store
 .idea
 saved_model/
+valid_result/
+test_attention_output.txt
 *.log
 __pycache__/
 *.py[cod]

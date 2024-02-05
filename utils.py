@@ -29,7 +29,7 @@ def computebleu(sentences, targets):
     for sentence, target in zip(sentences, targets):
         sentence = cut_token(sentence)
         target = cut_token(target)
-        score += sentence_bleu([target], sentence, weights=(1, 0, 0, 0))
+        score += sentence_bleu([target], sentence, weights=(0.25, 0.25, 0.25, 0.25))
     return score
 
 
