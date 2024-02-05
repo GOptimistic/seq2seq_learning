@@ -88,7 +88,7 @@ for step in range(summary_steps):
     loss.backward()
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
     optimizer.step()
-    accuracy = torch.eq(preds, targets).float().mean().item()
+    accuracy = torch.eq(outputs.argmax(1), targets).float().mean().item()
     accuracy_sum += accuracy
 
     loss_sum += loss.item()
@@ -115,7 +115,7 @@ for step in range(summary_steps):
                 targets_val = targets_val[:, 1:].reshape(-1)
                 loss = loss_function(outputs_val, targets_val)
                 loss_val += loss.item()
-                acc_val += torch.eq(preds_val, targets_val).float().mean().item()
+                acc_val += torch.eq(outputs_val.argmax(1), targets_val).float().mean().item()
 
                 # 将预测结果转为文字
                 targets_val = targets_val.view(sources_val.size(0), -1)
